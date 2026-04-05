@@ -209,6 +209,7 @@ if section == "Portfolio":
             return float(data['Close'].iloc[-1])
         except:
             return 0
+
     with st.spinner("🔄 Fetching latest price..."):
         buy = get_price(p_stock)
 
@@ -226,7 +227,7 @@ if section == "Portfolio":
         portfolio = pd.DataFrame(columns=["Stock","Qty","Buy","Date"])
 
     # ==============================
-    # ADD
+    # ADD STOCK
     # ==============================
     if st.button("➕ Add to Portfolio", key="add_btn"):
 
@@ -239,7 +240,7 @@ if section == "Portfolio":
         st.success("Added Successfully ✅")
 
     # ==============================
-    # DISPLAY
+    # DISPLAY PORTFOLIO
     # ==============================
     if not portfolio.empty:
 
@@ -248,7 +249,19 @@ if section == "Portfolio":
 
         for _, row in portfolio.iterrows():
 
-            price = get_price(row["Stock"])
+            d = yf.download(row["Stock"], period="6mo")
+
+            # Fix MultiIndex
+            if isinstance(d.columns, pd.MultiIndex):
+                d.columns = d.columns.get_level_values(0)
+
+            if d.empty:
+                continue
+
+            # ==============================
+            # CURRENT PRICE
+            # ==============================
+            price = float(d['Close'].iloc[-1])
 
             if ".NS" not in row["Stock"]:
                 price *= usd_to_inr
@@ -270,71 +283,26 @@ if section == "Portfolio":
                 "Date": row["Date"]
             })
 
-    # Growth
-    for _, row in portfolio.iterrows():
+            # ==============================
+            # PORTFOLIO GROWTH
+            # ==============================
+            hist = d['Close']
 
-        d = yf.download(row["Stock"], period="6mo")
+            if ".NS" not in row["Stock"]:
+                hist *= usd_to_inr
 
-    # Fix MultiIndex
-    if isinstance(d.columns, pd.MultiIndex):
-        d.columns = d.columns.get_level_values(0)
+            hist = hist * row["Qty"]
 
-    # Skip empty data
-    if d.empty:
-        continue
+            history = hist if history is None else history.add(hist, fill_value=0)
 
-    # Current price
-    price = float(d['Close'].iloc[-1])
+        # ==============================
+        # DATAFRAME
+        # ==============================
+        df = pd.DataFrame(results)
 
-    if ".NS" not in row["Stock"]:
-        price *= usd_to_inr
-
-    value = price * row["Qty"]
-    invest = row["Buy"] * row["Qty"]
-    profit = value - invest
-    pct = (profit / invest) * 100 if invest != 0 else 0
-
-    results.append({
-        "Stock": row["Stock"],
-        "Qty": row["Qty"],
-        "Buy (₹)": row["Buy"],
-        "Current (₹)": price,
-        "Investment (₹)": invest,
-        "Value (₹)": value,
-        "Profit (₹)": profit,
-        "Return %": pct,
-        "Date": row["Date"]
-    })
-
-    # ==============================
-    # PORTFOLIO GROWTH
-    # ==============================
-    hist = d['Close']
-
-    if ".NS" not in row["Stock"]:
-        hist *= usd_to_inr
-
-    hist = hist * row["Qty"]
-
-    history = hist if history is None else history.add(hist, fill_value=0)
-
-# After loop
-df = pd.DataFrame(results)
         # ==============================
         # TABLE
         # ==============================
-        if not portfolio.empty:
-
-            results = []
-            history = None
-
-        for _, row in portfolio.iterrows():
-            # loop code here
-            pass
-
-        # ✅ SAME LEVEL AS FOR LOOP (IMPORTANT)
-        df = pd.DataFrame(results)
-
         st.markdown("### 📋 Portfolio Details")
         st.dataframe(df)
 
@@ -358,16 +326,18 @@ df = pd.DataFrame(results)
             c3.metric("Loss", f"₹{round(total_profit,2)}", "📉")
 
         # ==============================
-        # GROWTH
+        # GROWTH CHART
         # ==============================
         st.markdown("### 📈 Portfolio Performance")
+
         if history is not None:
             st.line_chart(history)
 
         # ==============================
-        # PIE
+        # PIE CHART
         # ==============================
         st.markdown("### 📊 Allocation")
+
         fig = px.pie(df, names="Stock", values="Value (₹)")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -382,6 +352,9 @@ df = pd.DataFrame(results)
             portfolio = portfolio[portfolio["Stock"] != remove_stock]
             portfolio.to_csv(FILE, index=False)
             st.warning("Stock removed. Refresh app.")
+
+        else:
+            st.info("📭 No stocks in portfolio yet.")
 # ==============================
 # COMPARISON 
 # ==============================
