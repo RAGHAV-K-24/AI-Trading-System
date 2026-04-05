@@ -1,3 +1,18 @@
+# ==========================================
+# AI TRADING SYSTEM 
+# ==========================================
+
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
+from sklearn.ensemble import RandomForestRegressor
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from newsapi import NewsApiClient
+import os
+
 st.markdown("""
 <style>
 body {
@@ -37,20 +52,6 @@ div[data-testid="stMetric"] {
 }
 </style>
 """, unsafe_allow_html=True)
-# ==========================================
-# AI TRADING SYSTEM 
-# ==========================================
-
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-from sklearn.ensemble import RandomForestRegressor
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from newsapi import NewsApiClient
-import os
 
 st.set_page_config(page_title="AI Trading System", layout="wide")
 st.title("🚀 AI Financial Decision Support System")
