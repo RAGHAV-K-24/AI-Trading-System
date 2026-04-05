@@ -271,28 +271,55 @@ if section == "Portfolio":
             })
 
             # Growth
-            d = yf.download(row["Stock"], period="6mo")
+            for _, row in portfolio.iterrows():
 
-            #  MultiIndex
-            if isinstance(d.columns, pd.MultiIndex):
-                d.columns = d.columns.get_level_values(0)
+    d = yf.download(row["Stock"], period="6mo")
 
-            if not d.empty:
+    # Fix MultiIndex
+    if isinstance(d.columns, pd.MultiIndex):
+        d.columns = d.columns.get_level_values(0)
 
-               hist = d['Close']
+    # Skip empty data
+    if d.empty:
+        continue
 
-            # Convert to INR if needed
-            if ".NS" not in row["Stock"]:
-                hist = hist * usd_to_inr
+    # Current price
+    price = float(d['Close'].iloc[-1])
 
-            # Multiply by quantity (real portfolio value)
-            hist = hist * row["Qty"]
+    if ".NS" not in row["Stock"]:
+        price *= usd_to_inr
 
-            # Add to portfolio history
-            history = hist if history is None else history.add(hist, fill_value=0)
+    value = price * row["Qty"]
+    invest = row["Buy"] * row["Qty"]
+    profit = value - invest
+    pct = (profit / invest) * 100 if invest != 0 else 0
 
-            # After loop
-            df = pd.DataFrame(results)
+    results.append({
+        "Stock": row["Stock"],
+        "Qty": row["Qty"],
+        "Buy (₹)": row["Buy"],
+        "Current (₹)": price,
+        "Investment (₹)": invest,
+        "Value (₹)": value,
+        "Profit (₹)": profit,
+        "Return %": pct,
+        "Date": row["Date"]
+    })
+
+    # ==============================
+    # PORTFOLIO GROWTH
+    # ==============================
+    hist = d['Close']
+
+    if ".NS" not in row["Stock"]:
+        hist *= usd_to_inr
+
+    hist = hist * row["Qty"]
+
+    history = hist if history is None else history.add(hist, fill_value=0)
+
+# After loop
+df = pd.DataFrame(results)
         # ==============================
         # TABLE
         # ==============================
