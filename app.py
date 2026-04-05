@@ -169,6 +169,8 @@ if section == "Portfolio":
     # ==============================
     # USD → INR RATE
     # ==============================
+    p_stock = st.selectbox("Stock", stocks, key="add_stock")
+    
     latest = yf.download(p_stock, period="1d")
 
     # Fix MultiIndex
