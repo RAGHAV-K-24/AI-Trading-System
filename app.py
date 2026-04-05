@@ -272,29 +272,27 @@ if section == "Portfolio":
 
             # Growth
             d = yf.download(row["Stock"], period="6mo")
+
+            #  MultiIndex
             if isinstance(d.columns, pd.MultiIndex):
                 d.columns = d.columns.get_level_values(0)
 
             if not d.empty:
-                hist = d['Close']
-
-                if ".NS" not in row["Stock"]:
-                    hist *= usd_to_inr
 
                 hist = d['Close']
 
-             # Convert to INR
-             if ".NS" not in row["Stock"]:
-                  hist = hist * usd_to_inr
+            # Convert to INR if needed
+            if ".NS" not in row["Stock"]:
+                hist = hist * usd_to_inr
 
-             # Multiply by quantity (real value)
-             hist = hist * row["Qty"]
+            # Multiply by quantity (real portfolio value)
+            hist = hist * row["Qty"]
 
-             # Add to portfolio
-             history = hist if history is None else history.add(hist, fill_value=0)
+            # Add to portfolio history
+            history = hist if history is None else history.add(hist, fill_value=0)
 
-        df = pd.DataFrame(results)
-
+            # After loop
+            df = pd.DataFrame(results)
         # ==============================
         # TABLE
         # ==============================
