@@ -169,16 +169,16 @@ if section == "Portfolio":
     # ==============================
     # USD → INR RATE
     # ==============================
-    usd_data = yf.download("INR=X", period="1d")
+    latest = yf.download(p_stock, period="1d")
 
-    #  MultiIndex 
-    if isinstance(usd_data.columns, pd.MultiIndex):
-        usd_data.columns = usd_data.columns.get_level_values(0)
+    # Fix MultiIndex
+    if isinstance(latest.columns, pd.MultiIndex):
+        latest.columns = latest.columns.get_level_values(0)
 
     try:
-        usd_to_inr = float(usd_data['Close'].iloc[-1])
+        buy = float(latest['Close'].iloc[-1])
     except:
-        usd_to_inr = 83
+        buy = 0
 
     # ==============================
     # LOAD DATA
