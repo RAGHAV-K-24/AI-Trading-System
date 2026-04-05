@@ -279,7 +279,7 @@ if section == "Portfolio":
 
             if not d.empty:
 
-                hist = d['Close']
+               hist = d['Close']
 
             # Convert to INR if needed
             if ".NS" not in row["Stock"]:
