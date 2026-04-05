@@ -137,7 +137,8 @@ if section == "Dashboard":
     # NEWS
     st.subheader("📰 Market News")
 
-    api_key = "d5ac4b7fc7e04d669872b02dcb045afe"
+    import os
+    api_key = os.getenv("d5ac4b7fc7e04d669872b02dcb045afe")
     newsapi = NewsApiClient(api_key=api_key)
     analyzer = SentimentIntensityAnalyzer()
 
