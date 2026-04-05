@@ -47,7 +47,7 @@ if section == "Dashboard":
 
     stock = st.selectbox("Select Asset", stocks)
     with st.spinner("📊 Loading market data..."):
-    data = yf.download(stock, period="1y")
+       data = yf.download(stock, period="1y")
     if isinstance(data.columns, pd.MultiIndex):
        data.columns = data.columns.get_level_values(0)
 
