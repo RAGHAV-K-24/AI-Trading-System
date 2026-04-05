@@ -165,15 +165,41 @@ if section == "Dashboard":
 if section == "Portfolio":
 
     FILE = "portfolio.csv"
+    
+    st.markdown("## 📊 Portfolio Tracker")
+
+    # ==============================
+    # INPUT UI 
+    # ==============================
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        p_stock = st.selectbox("Stock", stocks, key="add_stock")
+
+    with col2:
+        qty = st.number_input("Quantity", min_value=1, key="qty_input")
+
+    with col3:
+        date = st.date_input("Purchase Date", key="purchase_date")
 
     # ==============================
     # USD → INR RATE
     # ==============================
-    p_stock = st.selectbox("Stock", stocks, key="add_stock")
-    
+    usd_data = yf.download("INR=X", period="1d")
+
+    if isinstance(usd_data.columns, pd.MultiIndex):
+        usd_data.columns = usd_data.columns.get_level_values(0)
+
+    try:
+        usd_to_inr = float(usd_data['Close'].iloc[-1])
+    except:
+        usd_to_inr = 83
+
+    # ==============================
+    # FETCH BUY PRICE
+    # ==============================
     latest = yf.download(p_stock, period="1d")
 
-    # Fix MultiIndex
     if isinstance(latest.columns, pd.MultiIndex):
         latest.columns = latest.columns.get_level_values(0)
 
@@ -181,6 +207,12 @@ if section == "Portfolio":
         buy = float(latest['Close'].iloc[-1])
     except:
         buy = 0
+
+    # Convert to INR if needed
+    if ".NS" not in p_stock:
+        buy = buy * usd_to_inr
+
+    st.write(f"Buy Price (₹): {round(buy,2)}")
 
     # ==============================
     # LOAD DATA
@@ -199,33 +231,6 @@ if section == "Portfolio":
 
     else:
         portfolio = pd.DataFrame(columns=["Stock","Qty","Buy","Date"])
-
-    st.markdown("## 📊 Portfolio Tracker")
-
-    # ==============================
-    # INPUT UI 
-    # ==============================
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        p_stock = st.selectbox("Stock", stocks, key="add_stock")
-
-    with col2:
-        qty = st.number_input("Quantity", min_value=1, key="qty_input")
-
-    with col3:
-        date = st.date_input("Purchase Date", key="purchase_date")
-
-    # ==============================
-    # BUY PRICE
-    # ==============================
-    latest = yf.download(p_stock, period="1d")
-    buy = float(latest['Close'].iloc[-1]) if not latest.empty else 0
-
-    if ".NS" not in p_stock:
-        buy = buy * usd_to_inr
-
-    st.write(f"Buy Price (₹): {round(buy,2)}")
 
     # ==============================
     # ADD BUTTON
