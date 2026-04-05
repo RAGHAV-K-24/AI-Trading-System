@@ -13,8 +13,8 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from newsapi import NewsApiClient
 import os
 
-st.set_page_config(page_title="AI Trading System", layout="wide")
-st.title("🚀 AI Financial Decision Support System")
+st.set_page_config(page_title="AI Trading Dashboard", layout="wide")
+st.title("🚀 Real-time AI Financial Decision System")
 
 # ==============================
 # STOCK LISTS
@@ -46,6 +46,7 @@ stocks = india if category=="India" else us if category=="US" else crypto
 if section == "Dashboard":
 
     stock = st.selectbox("Select Asset", stocks)
+    with st.spinner("📊 Loading market data..."):
     data = yf.download(stock, period="1y")
     if isinstance(data.columns, pd.MultiIndex):
        data.columns = data.columns.get_level_values(0)
@@ -208,8 +209,8 @@ if section == "Portfolio":
             return float(data['Close'].iloc[-1])
         except:
             return 0
-
-    buy = get_price(p_stock)
+    with st.spinner("🔄 Fetching latest price..."):
+        buy = get_price(p_stock)
 
     if ".NS" not in p_stock:
         buy *= usd_to_inr
@@ -350,9 +351,9 @@ if section == "Comparison":
 
         comp = pd.DataFrame()
         returns_data = pd.DataFrame()
-
-        for s in selected:
-            d = yf.download(s, period="6mo")
+        with st.spinner("📈 Comparing stocks..."):
+           for s in selected:
+               d = yf.download(s, period="6mo")
 
             if d.empty:
                 continue
