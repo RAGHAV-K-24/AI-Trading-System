@@ -13,46 +13,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from newsapi import NewsApiClient
 import os
 
-st.markdown("""
-<style>
-body {
-    background-color: #0E1117;
-    color: white;
-}
-
-.stApp {
-    background: linear-gradient(135deg, #0E1117, #111827);
-}
-
-.block-container {
-    padding-top: 1rem;
-}
-
-div[data-testid="stMetric"] {
-    background: #1E222D;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
-}
-
-.stDataFrame {
-    background-color: #1E222D;
-    border-radius: 10px;
-}
-
-.stButton>button {
-    background: linear-gradient(90deg, #00C6FF, #0072FF);
-    color: white;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-}
-
-.stSelectbox, .stNumberInput, .stDateInput {
-    background-color: #1E222D;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.set_page_config(page_title="AI Trading System", layout="wide")
 st.title("🚀 AI Financial Decision Support System")
 
