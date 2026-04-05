@@ -169,8 +169,13 @@ if section == "Portfolio":
     # ==============================
     # USD → INR RATE
     # ==============================
-    usd_data = yf.download("INR=X", period="1d")
-    usd_to_inr = float(usd_data['Close'].iloc[-1]) if not usd_data.empty else 83
+     usd_data = yf.download("INR=X", period="1d")
+
+    # MULTIINDEX
+      if isinstance(usd_data.columns, pd.MultiIndex):
+      usd_data.columns = usd_data.columns.get_level_values(0)
+
+      usd_to_inr = float(usd_data['Close'].iloc[-1]) if not usd_data.empty else 83
 
     # ==============================
     # LOAD DATA
