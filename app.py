@@ -270,10 +270,10 @@ if section == "Portfolio":
                 "Date": row["Date"]
             })
 
-            # Growth
-            for _, row in portfolio.iterrows():
+    # Growth
+    for _, row in portfolio.iterrows():
 
-            d = yf.download(row["Stock"], period="6mo")
+    d = yf.download(row["Stock"], period="6mo")
 
     # Fix MultiIndex
     if isinstance(d.columns, pd.MultiIndex):
