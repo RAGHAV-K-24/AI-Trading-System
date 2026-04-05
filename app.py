@@ -354,7 +354,7 @@ if section == "Portfolio":
             st.warning("Stock removed. Refresh app.")
 
         else:
-            st.info("📭 No stocks in portfolio yet.")
+            st.info("portfolio.")
 # ==============================
 # COMPARISON 
 # ==============================
