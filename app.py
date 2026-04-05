@@ -169,7 +169,7 @@ if section == "Portfolio":
     # ==============================
     # USD → INR RATE
     # ==============================
-     usd_data = yf.download("INR=X", period="1d")
+      usd_data = yf.download("INR=X", period="1d")
 
     # MULTIINDEX
       if isinstance(usd_data.columns, pd.MultiIndex):
