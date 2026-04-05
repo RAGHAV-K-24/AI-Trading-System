@@ -323,6 +323,18 @@ df = pd.DataFrame(results)
         # ==============================
         # TABLE
         # ==============================
+        if not portfolio.empty:
+
+            results = []
+            history = None
+
+        for _, row in portfolio.iterrows():
+            # loop code here
+            pass
+
+        # ✅ SAME LEVEL AS FOR LOOP (IMPORTANT)
+        df = pd.DataFrame(results)
+
         st.markdown("### 📋 Portfolio Details")
         st.dataframe(df)
 
