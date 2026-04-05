@@ -368,20 +368,47 @@ if section == "Comparison":
 
         comp = pd.DataFrame()
         returns_data = pd.DataFrame()
+
         with st.spinner("📈 Comparing stocks..."):
-           for s in selected:
-               d = yf.download(s, period="6mo")
 
-            if d.empty:
-                continue
+            for s in selected:
 
-            close = d['Close']
+                d = yf.download(s, period="6mo")
 
-            # Normalize for comparison
-            comp[s] = close / close.iloc[0]
+                # Fix MultiIndex
+                if isinstance(d.columns, pd.MultiIndex):
+                    d.columns = d.columns.get_level_values(0)
 
-            # Daily returns
-            returns_data[s] = close.pct_change()
+                if d.empty:
+                    continue
+
+                close = d['Close']
+
+                # Normalize (for comparison chart)
+                comp[s] = close / close.iloc[0]
+
+                # Daily returns
+                returns_data[s] = close.pct_change()
+
+        # ==============================
+        # CHART
+        # ==============================
+        st.markdown("### 📈 Price Comparison (Normalized)")
+
+        if not comp.empty:
+            st.line_chart(comp)
+
+        # ==============================
+        # VOLATILITY / RETURNS
+        # ==============================
+        st.markdown("### 📊 Risk & Return")
+
+        stats = pd.DataFrame({
+            "Return %": returns_data.mean() * 100,
+            "Volatility %": returns_data.std() * 100
+        })
+
+        st.dataframe(stats)
 
         # ==============================
         # 📈 PRICE COMPARISON
