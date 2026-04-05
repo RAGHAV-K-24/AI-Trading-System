@@ -165,11 +165,25 @@ if section == "Dashboard":
 if section == "Portfolio":
 
     FILE = "portfolio.csv"
-    
     st.markdown("## 📊 Portfolio Tracker")
 
     # ==============================
-    # INPUT UI 
+    # USD → INR RATE 
+    # ==============================
+    @st.cache_data(ttl=3600)
+    def get_usd_inr():
+        data = yf.download("INR=X", period="1d")
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+        try:
+            return float(data['Close'].iloc[-1])
+        except:
+            return 83
+
+    usd_to_inr = get_usd_inr()
+
+    # ==============================
+    # INPUT UI
     # ==============================
     col1, col2, col3 = st.columns(3)
 
@@ -183,34 +197,22 @@ if section == "Portfolio":
         date = st.date_input("Purchase Date", key="purchase_date")
 
     # ==============================
-    # USD → INR RATE
+    # FETCH PRICE 
     # ==============================
-    usd_data = yf.download("INR=X", period="1d")
+    @st.cache_data(ttl=60)
+    def get_price(symbol):
+        data = yf.download(symbol, period="1d")
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+        try:
+            return float(data['Close'].iloc[-1])
+        except:
+            return 0
 
-    if isinstance(usd_data.columns, pd.MultiIndex):
-        usd_data.columns = usd_data.columns.get_level_values(0)
+    buy = get_price(p_stock)
 
-    try:
-        usd_to_inr = float(usd_data['Close'].iloc[-1])
-    except:
-        usd_to_inr = 83
-
-    # ==============================
-    # FETCH BUY PRICE
-    # ==============================
-    latest = yf.download(p_stock, period="1d")
-
-    if isinstance(latest.columns, pd.MultiIndex):
-        latest.columns = latest.columns.get_level_values(0)
-
-    try:
-        buy = float(latest['Close'].iloc[-1])
-    except:
-        buy = 0
-
-    # Convert to INR if needed
     if ".NS" not in p_stock:
-        buy = buy * usd_to_inr
+        buy *= usd_to_inr
 
     st.write(f"Buy Price (₹): {round(buy,2)}")
 
@@ -219,28 +221,16 @@ if section == "Portfolio":
     # ==============================
     if os.path.exists(FILE):
         portfolio = pd.read_csv(FILE)
-
-        expected_cols = ["Stock","Qty","Buy","Date"]
-        portfolio = portfolio[[col for col in expected_cols if col in portfolio.columns]]
-
-        for col in expected_cols:
-            if col not in portfolio.columns:
-                portfolio[col] = None
-
-        portfolio = portfolio[expected_cols]
-
     else:
         portfolio = pd.DataFrame(columns=["Stock","Qty","Buy","Date"])
 
     # ==============================
-    # ADD BUTTON
+    # ADD
     # ==============================
     if st.button("➕ Add to Portfolio", key="add_btn"):
 
-        new = pd.DataFrame(
-            [[p_stock, qty, buy, date]],
-            columns=["Stock","Qty","Buy","Date"]
-        )
+        new = pd.DataFrame([[p_stock, qty, buy, date]],
+                           columns=["Stock","Qty","Buy","Date"])
 
         portfolio = pd.concat([portfolio, new], ignore_index=True)
         portfolio.to_csv(FILE, index=False)
@@ -257,16 +247,10 @@ if section == "Portfolio":
 
         for _, row in portfolio.iterrows():
 
-            d = yf.download(row["Stock"], period="6mo")
+            price = get_price(row["Stock"])
 
-            if d.empty:
-                continue
-
-            price = float(d['Close'].iloc[-1])
-
-            # Convert to INR
             if ".NS" not in row["Stock"]:
-                price = price * usd_to_inr
+                price *= usd_to_inr
 
             value = price * row["Qty"]
             invest = row["Buy"] * row["Qty"]
@@ -276,8 +260,8 @@ if section == "Portfolio":
             results.append({
                 "Stock": row["Stock"],
                 "Qty": row["Qty"],
-                "Buy Price (₹)": row["Buy"],
-                "Current Price (₹)": price,
+                "Buy (₹)": row["Buy"],
+                "Current (₹)": price,
                 "Investment (₹)": invest,
                 "Value (₹)": value,
                 "Profit (₹)": profit,
@@ -285,18 +269,21 @@ if section == "Portfolio":
                 "Date": row["Date"]
             })
 
-            # ==============================
-            # NORMALIZED GROWTH (FIXED)
-            # ==============================
-            hist = d['Close']
+            # Growth
+            d = yf.download(row["Stock"], period="6mo")
+            if isinstance(d.columns, pd.MultiIndex):
+                d.columns = d.columns.get_level_values(0)
 
-            if ".NS" not in row["Stock"]:
-                hist = hist * usd_to_inr
+            if not d.empty:
+                hist = d['Close']
 
-            hist = hist / hist.iloc[0]   # normalize
-            hist = hist * row["Qty"]
+                if ".NS" not in row["Stock"]:
+                    hist *= usd_to_inr
 
-            history = hist if history is None else history.add(hist, fill_value=0)
+                hist = hist / hist.iloc[0]
+                hist *= row["Qty"]
+
+                history = hist if history is None else history.add(hist, fill_value=0)
 
         df = pd.DataFrame(results)
 
@@ -307,37 +294,35 @@ if section == "Portfolio":
         st.dataframe(df)
 
         # ==============================
-        # SUMMARY (CARDS)
+        # SUMMARY
         # ==============================
-        total_value = float(df["Value (₹)"].sum())
-        total_invest = float(df["Investment (₹)"].sum())
+        total_value = df["Value (₹)"].sum()
+        total_invest = df["Investment (₹)"].sum()
         total_profit = total_value - total_invest
 
         st.markdown("### 💰 Portfolio Summary")
 
-        col1, col2, col3 = st.columns(3)
+        c1, c2, c3 = st.columns(3)
 
-        col1.metric("Investment", f"₹{round(total_invest,2)}")
-        col2.metric("Value", f"₹{round(total_value,2)}")
+        c1.metric("Investment", f"₹{round(total_invest,2)}")
+        c2.metric("Value", f"₹{round(total_value,2)}")
 
         if total_profit > 0:
-            col3.metric("Profit", f"₹{round(total_profit,2)}", delta="Profit")
+            c3.metric("Profit", f"₹{round(total_profit,2)}", "📈")
         else:
-            col3.metric("Loss", f"₹{round(total_profit,2)}", delta="Loss")
+            c3.metric("Loss", f"₹{round(total_profit,2)}", "📉")
 
         # ==============================
-        # GROWTH CHART
+        # GROWTH
         # ==============================
         st.markdown("### 📈 Portfolio Performance")
-
         if history is not None:
             st.line_chart(history)
 
         # ==============================
-        # PIE CHART
+        # PIE
         # ==============================
         st.markdown("### 📊 Allocation")
-
         fig = px.pie(df, names="Stock", values="Value (₹)")
         st.plotly_chart(fig, use_container_width=True)
 
