@@ -281,10 +281,17 @@ if section == "Portfolio":
                 if ".NS" not in row["Stock"]:
                     hist *= usd_to_inr
 
-                hist = hist / hist.iloc[0]
-                hist *= row["Qty"]
+                hist = d['Close']
 
-                history = hist if history is None else history.add(hist, fill_value=0)
+             # Convert to INR
+             if ".NS" not in row["Stock"]:
+                  hist = hist * usd_to_inr
+
+             # Multiply by quantity (real value)
+             hist = hist * row["Qty"]
+
+             # Add to portfolio
+             history = hist if history is None else history.add(hist, fill_value=0)
 
         df = pd.DataFrame(results)
 
