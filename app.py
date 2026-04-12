@@ -13,6 +13,14 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from newsapi import NewsApiClient
 import os
 
+from supabase import create_client
+import os
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 st.set_page_config(page_title="AI Trading Dashboard", layout="wide")
 st.title("🚀 Real-time AI Financial Decision System")
 
@@ -165,25 +173,19 @@ if section == "Dashboard":
 # ==============================
 if section == "Portfolio":
 
-    import sqlite3
-
-    conn = sqlite3.connect("portfolio.db", check_same_thread=False)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS portfolio (
-        stock TEXT,
-        qty INTEGER,
-        buy REAL,
-        date TEXT
-    )
-    """)
-    conn.commit()
-
     st.markdown("## 📊 Portfolio Tracker")
 
     # ==============================
-    # USD → INR RATE
+    # FETCH FROM SUPABASE
+    # ==============================
+    response = supabase.table("portfolio").select("*").execute()
+    portfolio = pd.DataFrame(response.data)
+
+    if portfolio.empty:
+        portfolio = pd.DataFrame(columns=["stock","qty","buy","date"])
+
+    # ==============================
+    # USD → INR
     # ==============================
     @st.cache_data(ttl=3600)
     def get_usd_inr():
@@ -198,7 +200,7 @@ if section == "Portfolio":
     usd_to_inr = get_usd_inr()
 
     # ==============================
-    # INPUT
+    # INPUT UI
     # ==============================
     col1, col2, col3 = st.columns(3)
 
@@ -212,7 +214,7 @@ if section == "Portfolio":
         date = st.date_input("Purchase Date", key="purchase_date")
 
     # ==============================
-    # PRICE
+    # PRICE FETCH
     # ==============================
     @st.cache_data(ttl=60)
     def get_price(symbol):
@@ -233,23 +235,21 @@ if section == "Portfolio":
     st.write(f"Buy Price (₹): {round(buy,2)}")
 
     # ==============================
-    # ADD
+    # ADD STOCK
     # ==============================
     if st.button("➕ Add to Portfolio", key="add_btn"):
-        cursor.execute(
-            "INSERT INTO portfolio VALUES (?, ?, ?, ?)",
-            (p_stock, qty, buy, str(date))
-        )
-        conn.commit()
+
+        supabase.table("portfolio").insert({
+            "stock": p_stock,
+            "qty": int(qty),
+            "buy": float(buy),
+            "date": str(date)
+        }).execute()
+
         st.success("Added Successfully ✅")
 
     # ==============================
-    # LOAD FROM DB
-    # ==============================
-    portfolio = pd.read_sql("SELECT * FROM portfolio", conn)
-
-    # ==============================
-    # DISPLAY
+    # DISPLAY PORTFOLIO
     # ==============================
     if not portfolio.empty:
 
@@ -266,6 +266,9 @@ if section == "Portfolio":
             if d.empty:
                 continue
 
+            # ==============================
+            # CURRENT PRICE
+            # ==============================
             price = float(d['Close'].iloc[-1])
 
             if ".NS" not in row["stock"]:
@@ -288,21 +291,33 @@ if section == "Portfolio":
                 "Date": row["date"]
             })
 
-            # Growth
+            # ==============================
+            # FIXED PORTFOLIO GROWTH
+            # ==============================
             hist = d['Close']
 
             if ".NS" not in row["stock"]:
                 hist *= usd_to_inr
 
-            hist = hist * row["qty"]
+            # Normalize to investment
+            if row["buy"] != 0:
+                hist = hist / row["buy"]
+
+            hist = hist * (row["buy"] * row["qty"])
 
             history = hist if history is None else history.add(hist, fill_value=0)
 
         df = pd.DataFrame(results)
 
+        # ==============================
+        # TABLE
+        # ==============================
         st.markdown("### 📋 Portfolio Details")
         st.dataframe(df)
 
+        # ==============================
+        # SUMMARY
+        # ==============================
         total_value = df["Value (₹)"].sum()
         total_invest = df["Investment (₹)"].sum()
         total_profit = total_value - total_invest
@@ -319,27 +334,42 @@ if section == "Portfolio":
         else:
             c3.metric("Loss", f"₹{round(total_profit,2)}", "📉")
 
+        # ==============================
+        # PERFORMANCE GRAPH
+        # ==============================
         st.markdown("### 📈 Portfolio Performance")
 
         if history is not None:
             st.line_chart(history)
 
+        st.caption("📌  portfolio value based on invested capital")
+
+        # ==============================
+        # PIE CHART
+        # ==============================
         st.markdown("### 📊 Allocation")
+
         fig = px.pie(df, names="Stock", values="Value (₹)")
         st.plotly_chart(fig, use_container_width=True)
 
-        # DELETE
+        # ==============================
+        # DELETE STOCK
+        # ==============================
         st.markdown("### 🗑️ Remove Stock")
 
         remove_stock = st.selectbox("Select stock", portfolio["stock"], key="remove_stock")
 
         if st.button("Delete", key="delete_btn"):
-            cursor.execute("DELETE FROM portfolio WHERE stock = ?", (remove_stock,))
-            conn.commit()
+
+            supabase.table("portfolio")\
+                .delete()\
+                .eq("stock", remove_stock)\
+                .execute()
+
             st.warning("Stock removed. Refresh app.")
 
     else:
-        st.info(" portfolio.")
+        st.info("portfolio")
 # ==============================
 # COMPARISON 
 # ==============================
