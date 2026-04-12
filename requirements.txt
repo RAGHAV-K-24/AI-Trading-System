@@ -6,3 +6,4 @@ plotly
 scikit-learn
 vaderSentiment
 newsapi-python
+supabase
