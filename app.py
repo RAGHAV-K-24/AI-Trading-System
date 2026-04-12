@@ -165,11 +165,25 @@ if section == "Dashboard":
 # ==============================
 if section == "Portfolio":
 
-    FILE = "portfolio.csv"
+    import sqlite3
+
+    conn = sqlite3.connect("portfolio.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS portfolio (
+        stock TEXT,
+        qty INTEGER,
+        buy REAL,
+        date TEXT
+    )
+    """)
+    conn.commit()
+
     st.markdown("## 📊 Portfolio Tracker")
 
     # ==============================
-    # USD → INR RATE 
+    # USD → INR RATE
     # ==============================
     @st.cache_data(ttl=3600)
     def get_usd_inr():
@@ -184,7 +198,7 @@ if section == "Portfolio":
     usd_to_inr = get_usd_inr()
 
     # ==============================
-    # INPUT UI
+    # INPUT
     # ==============================
     col1, col2, col3 = st.columns(3)
 
@@ -198,7 +212,7 @@ if section == "Portfolio":
         date = st.date_input("Purchase Date", key="purchase_date")
 
     # ==============================
-    # FETCH PRICE 
+    # PRICE
     # ==============================
     @st.cache_data(ttl=60)
     def get_price(symbol):
@@ -219,28 +233,23 @@ if section == "Portfolio":
     st.write(f"Buy Price (₹): {round(buy,2)}")
 
     # ==============================
-    # LOAD DATA
-    # ==============================
-    if os.path.exists(FILE):
-        portfolio = pd.read_csv(FILE)
-    else:
-        portfolio = pd.DataFrame(columns=["Stock","Qty","Buy","Date"])
-
-    # ==============================
-    # ADD STOCK
+    # ADD
     # ==============================
     if st.button("➕ Add to Portfolio", key="add_btn"):
-
-        new = pd.DataFrame([[p_stock, qty, buy, date]],
-                           columns=["Stock","Qty","Buy","Date"])
-
-        portfolio = pd.concat([portfolio, new], ignore_index=True)
-        portfolio.to_csv(FILE, index=False)
-
+        cursor.execute(
+            "INSERT INTO portfolio VALUES (?, ?, ?, ?)",
+            (p_stock, qty, buy, str(date))
+        )
+        conn.commit()
         st.success("Added Successfully ✅")
 
     # ==============================
-    # DISPLAY PORTFOLIO
+    # LOAD FROM DB
+    # ==============================
+    portfolio = pd.read_sql("SELECT * FROM portfolio", conn)
+
+    # ==============================
+    # DISPLAY
     # ==============================
     if not portfolio.empty:
 
@@ -249,66 +258,51 @@ if section == "Portfolio":
 
         for _, row in portfolio.iterrows():
 
-            d = yf.download(row["Stock"], period="6mo")
+            d = yf.download(row["stock"], period="6mo")
 
-            # Fix MultiIndex
             if isinstance(d.columns, pd.MultiIndex):
                 d.columns = d.columns.get_level_values(0)
 
             if d.empty:
                 continue
 
-            # ==============================
-            # CURRENT PRICE
-            # ==============================
             price = float(d['Close'].iloc[-1])
 
-            if ".NS" not in row["Stock"]:
+            if ".NS" not in row["stock"]:
                 price *= usd_to_inr
 
-            value = price * row["Qty"]
-            invest = row["Buy"] * row["Qty"]
+            value = price * row["qty"]
+            invest = row["buy"] * row["qty"]
             profit = value - invest
             pct = (profit / invest) * 100 if invest != 0 else 0
 
             results.append({
-                "Stock": row["Stock"],
-                "Qty": row["Qty"],
-                "Buy (₹)": row["Buy"],
+                "Stock": row["stock"],
+                "Qty": row["qty"],
+                "Buy (₹)": row["buy"],
                 "Current (₹)": price,
                 "Investment (₹)": invest,
                 "Value (₹)": value,
                 "Profit (₹)": profit,
                 "Return %": pct,
-                "Date": row["Date"]
+                "Date": row["date"]
             })
 
-            # ==============================
-            # PORTFOLIO GROWTH
-            # ==============================
+            # Growth
             hist = d['Close']
 
-            if ".NS" not in row["Stock"]:
+            if ".NS" not in row["stock"]:
                 hist *= usd_to_inr
 
-            hist = hist * row["Qty"]
+            hist = hist * row["qty"]
 
             history = hist if history is None else history.add(hist, fill_value=0)
 
-        # ==============================
-        # DATAFRAME
-        # ==============================
         df = pd.DataFrame(results)
 
-        # ==============================
-        # TABLE
-        # ==============================
         st.markdown("### 📋 Portfolio Details")
         st.dataframe(df)
 
-        # ==============================
-        # SUMMARY
-        # ==============================
         total_value = df["Value (₹)"].sum()
         total_invest = df["Investment (₹)"].sum()
         total_profit = total_value - total_invest
@@ -325,36 +319,27 @@ if section == "Portfolio":
         else:
             c3.metric("Loss", f"₹{round(total_profit,2)}", "📉")
 
-        # ==============================
-        # GROWTH CHART
-        # ==============================
         st.markdown("### 📈 Portfolio Performance")
 
         if history is not None:
             st.line_chart(history)
 
-        # ==============================
-        # PIE CHART
-        # ==============================
         st.markdown("### 📊 Allocation")
-
         fig = px.pie(df, names="Stock", values="Value (₹)")
         st.plotly_chart(fig, use_container_width=True)
 
-        # ==============================
         # DELETE
-        # ==============================
         st.markdown("### 🗑️ Remove Stock")
 
-        remove_stock = st.selectbox("Select stock", portfolio["Stock"], key="remove_stock")
+        remove_stock = st.selectbox("Select stock", portfolio["stock"], key="remove_stock")
 
         if st.button("Delete", key="delete_btn"):
-            portfolio = portfolio[portfolio["Stock"] != remove_stock]
-            portfolio.to_csv(FILE, index=False)
+            cursor.execute("DELETE FROM portfolio WHERE stock = ?", (remove_stock,))
+            conn.commit()
             st.warning("Stock removed. Refresh app.")
 
-        else:
-            st.info("portfolio.")
+    else:
+        st.info(" portfolio.")
 # ==============================
 # COMPARISON 
 # ==============================
