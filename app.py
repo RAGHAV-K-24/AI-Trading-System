@@ -22,7 +22,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="AI Trading Dashboard", layout="wide")
-st.title("🚀 Real-time AI Financial Decision System")
+st.title("🚀 Real-Time Financial Analysis and Portfolio Management System")
 
 # ==============================
 # STOCK LISTS
